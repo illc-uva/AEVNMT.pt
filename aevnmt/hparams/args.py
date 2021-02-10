@@ -81,11 +81,12 @@ distribution_args = {
 }
 
 emb_args = {
-    "emb.shared": (bool, False, False, "Inf model borrows src embeddings from gen model"),
+    "emb.shared": (bool, False, False, "Inf model borrows src embeddings from gen model"), # TODO: move to inf group
     "emb.init_scale": (float, 0.01, False, "Scale of the Gaussian that is used to"
                                            " initialize the embeddings."),
     "emb.size": (int, 32, False, "The source / target embedding size, this is also"
-                                 " the model size in the transformer architecture.")
+                                 " the model size in the transformer architecture."),
+    "emb.tie_src_tgt": (bool, False, False, "Tie the embedding parameters between src and tgt. Vocab needs to be shared (vocab.shared=true)")
 }
 
 inf_args = {
@@ -218,7 +219,7 @@ decoding_args = {
 }
 
 loss_args = {
-    "loss.type": (str, "ELBO", False, "Type of training objective. likelihood|ELBO|InfoVAE|LagVAE|IWAE"),
+    "loss.type": (str, "ELBO", False, "Type of training objective. LL|ELBO|InfoVAE|LagVAE|IWAE"),
 
     "loss.ELBO.beta": (float, 1., False, "Weight of the ELBO KL term."),
     "loss.ELBO.free_nats": (float, 0., False, "KL = min(free_nats, KL)"),

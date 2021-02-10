@@ -12,7 +12,13 @@ from torch.utils.data import DataLoader
 
 def create_model(hparams, vocab_src, vocab_tgt):
     src_embedder = torch.nn.Embedding(vocab_src.size(), hparams.emb.size, padding_idx=vocab_src[PAD_TOKEN])
-    tgt_embedder = torch.nn.Embedding(vocab_tgt.size(), hparams.emb.size, padding_idx=vocab_tgt[PAD_TOKEN])
+
+    if hparams.emb.tie_src_tgt and hparams.vocab.shared:
+        tgt_embedder = src_embedder
+    elif hparams.emb.tie_src_tgt and  not hparams.vocab.shared:
+        raise ValueError("To tie src and tgt embeddings the vocab needs to be shared (vocab.shared=true)")
+    else:
+        tgt_embedder = torch.nn.Embedding(vocab_tgt.size(), hparams.emb.size, padding_idx=vocab_tgt[PAD_TOKEN])
 
     encoder = create_encoder(hparams)
     attention = create_attention(hparams)
@@ -52,7 +58,7 @@ def create_model(hparams, vocab_src, vocab_tgt):
 
 def create_loss(hparams):
     if hparams.loss.type != "LL":
-        print(f"Warning: {hparams.loss.type} is an invalid loss type for NMT. Using log likelihood loss instead")
+        print(f"Warning: {hparams.loss.type} is an invalid loss type for NMT. Using log likelihood loss (LL) instead")
     return loss_functions.LogLikelihoodLoss(label_smoothing=hparams.gen.tm.label_smoothing)
 
 def train_step(model, x_in, x_out, seq_mask_x, seq_len_x, noisy_x_in, y_in, y_out, seq_mask_y, seq_len_y, noisy_y_in,

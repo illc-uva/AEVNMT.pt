@@ -372,7 +372,13 @@ def create_senvae_model(hparams, vocab_src):
 def create_model(hparams, vocab_src, vocab_tgt):
     # Generative components
     src_embedder = torch.nn.Embedding(vocab_src.size(), hparams.emb.size, padding_idx=vocab_src[PAD_TOKEN])
-    tgt_embedder = torch.nn.Embedding(vocab_tgt.size(), hparams.emb.size, padding_idx=vocab_tgt[PAD_TOKEN])
+
+    if hparams.emb.tie_src_tgt and hparams.vocab.shared:
+        tgt_embedder = src_embedder
+    elif hparams.emb.tie_src_tgt and  not hparams.vocab.shared:
+        raise ValueError("To tie src and tgt embeddings the vocab needs to be shared (vocab.shared=true)")
+    else:
+        tgt_embedder = torch.nn.Embedding(vocab_tgt.size(), hparams.emb.size, padding_idx=vocab_tgt[PAD_TOKEN])
 
     language_model = create_language_model(vocab_src, src_embedder, hparams)
 
@@ -400,11 +406,21 @@ def create_model(hparams, vocab_src, vocab_tgt):
         prior_params = [float(param) for param  in prior_params.split()]
         priors.append(create_prior(prior_family, latent_size, prior_params))
 
+    if hparams.emb.shared:
+        inf_src_embedder = DetachedEmbeddingLayer(src_embedder)
+        inf_tgt_embedder = DetachedEmbeddingLayer(tgt_embedder)
+    else:
+        inf_src_embedder = torch.nn.Embedding(
+            src_embedder.num_embeddings, src_embedder.embedding_dim, padding_idx=src_embedder.padding_idx)
+        if hparams.emb.tie_src_tgt and hparams.vocab.shared:
+            inf_tgt_embedder = inf_src_embedder
+        else:
+            inf_tgt_embedder = torch.nn.Embedding(
+                tgt_embedder.num_embeddings, tgt_embedder.embedding_dim, padding_idx=tgt_embedder.padding_idx)
+
     inf_model = create_inference_model(
-        DetachedEmbeddingLayer(src_embedder) if hparams.emb.shared else torch.nn.Embedding(
-            src_embedder.num_embeddings, src_embedder.embedding_dim, padding_idx=src_embedder.padding_idx),
-        DetachedEmbeddingLayer(tgt_embedder) if hparams.emb.shared else torch.nn.Embedding(
-            tgt_embedder.num_embeddings, tgt_embedder.embedding_dim, padding_idx=tgt_embedder.padding_idx),
+        inf_src_embedder,
+        inf_tgt_embedder,
         latent_sizes,
         hparams)
 
